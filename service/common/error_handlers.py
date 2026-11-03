@@ -2,7 +2,7 @@
 Module: error_handlers
 """
 from flask import jsonify
-from service.models import DataValidationError
+from service.models import DataValidationError, db
 from service import app
 from . import status
 
@@ -13,6 +13,7 @@ from . import status
 @app.errorhandler(DataValidationError)
 def request_validation_error(error):
     """Handles Value Errors from bad data"""
+    db.session.rollback()  # deserialize may have half-changed a loaded record
     return bad_request(error)
 
 
