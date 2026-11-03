@@ -153,3 +153,37 @@ class TestAccountService(TestCase):
         resp = self.client.get(BASE_URL)
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         self.assertEqual(resp.get_json(), [])
+
+    def test_update_account(self):
+        """It should Update an existing Account"""
+        # create an Account to update
+        test_account = AccountFactory()
+        resp = self.client.post(BASE_URL, json=test_account.serialize())
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+
+        # update the account
+        new_account = resp.get_json()
+        new_account["address"] = "unknown"
+        resp = self.client.put(f"{BASE_URL}/{new_account['id']}", json=new_account)
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.get_json()["address"], "unknown")
+
+        # the change was persisted
+        resp = self.client.get(f"{BASE_URL}/{new_account['id']}")
+        self.assertEqual(resp.get_json()["address"], "unknown")
+
+    def test_update_account_not_found(self):
+        """It should not Update an Account that is not found"""
+        account = AccountFactory()
+        resp = self.client.put(f"{BASE_URL}/0", json=account.serialize())
+        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_update_account_invalid_data(self):
+        """It should not Update an Account when sending invalid data"""
+        account = self._create_accounts(1)[0]
+        resp = self.client.put(f"{BASE_URL}/{account.id}", json={"name": "not enough data"})
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+        # the account is unchanged
+        resp = self.client.get(f"{BASE_URL}/{account.id}")
+        self.assertEqual(resp.get_json()["name"], account.name)
