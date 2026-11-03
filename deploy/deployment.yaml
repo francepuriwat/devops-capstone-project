@@ -20,5 +20,23 @@ spec:
       containers:
       - image: us.icr.io/sn-labs-puriwatsopho/accounts:1
         name: accounts
+        env:
+          - name: DATABASE_HOST
+            value: postgresql
+          - name: DATABASE_NAME
+            valueFrom:
+              secretKeyRef:
+                name: postgresql
+                key: database-name
+          - name: DATABASE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: postgresql
+                key: database-password
+          - name: DATABASE_USER
+            valueFrom:
+              secretKeyRef:
+                name: postgresql
+                key: database-user
         resources: {}
 status: {}
