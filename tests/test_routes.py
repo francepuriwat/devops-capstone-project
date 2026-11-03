@@ -8,6 +8,7 @@ Test cases can be run with the following:
 import os
 import logging
 from unittest import TestCase
+from unittest.mock import patch
 from tests.factories import AccountFactory
 from service.common import status  # HTTP Status Codes
 from service.models import db, Account, init_db
@@ -187,3 +188,39 @@ class TestAccountService(TestCase):
         # the account is unchanged
         resp = self.client.get(f"{BASE_URL}/{account.id}")
         self.assertEqual(resp.get_json()["name"], account.name)
+
+    def test_delete_account(self):
+        """It should Delete an Account"""
+        account = self._create_accounts(1)[0]
+        resp = self.client.delete(f"{BASE_URL}/{account.id}")
+        self.assertEqual(resp.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(len(resp.data), 0)
+
+        # the account is gone
+        resp = self.client.get(f"{BASE_URL}/{account.id}")
+        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_delete_account_not_found(self):
+        """It should return 204 when deleting an Account that does not exist"""
+        account = self._create_accounts(1)[0]
+        resp = self.client.delete(f"{BASE_URL}/0")
+        self.assertEqual(resp.status_code, status.HTTP_204_NO_CONTENT)
+
+        # other accounts are untouched
+        resp = self.client.get(f"{BASE_URL}/{account.id}")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+
+    def test_method_not_allowed(self):
+        """It should not allow an illegal method call"""
+        resp = self.client.post(f"{BASE_URL}/0")
+        self.assertEqual(resp.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    @patch("service.routes.Account.find", side_effect=Exception("boom"))
+    def test_internal_server_error(self, _find):
+        """It should return 500 when the service fails unexpectedly"""
+        app.config["PROPAGATE_EXCEPTIONS"] = False  # let the 500 handler answer
+        try:
+            resp = self.client.get(f"{BASE_URL}/1")
+        finally:
+            app.config["PROPAGATE_EXCEPTIONS"] = None
+        self.assertEqual(resp.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
